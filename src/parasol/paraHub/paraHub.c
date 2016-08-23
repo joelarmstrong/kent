@@ -2692,6 +2692,48 @@ for (el = list->head; !dlEnd(el); el = el->next)
 return TRUE;
 }
 
+int writeJobsForBatch(char *line, struct paraMessage *pm, boolean extended)
+/* Write out the list of jobs for a given batch. */
+{
+char *userName, *batchName;
+if ((userName = nextWord(&line)) == NULL)
+    return -1;
+struct user *user = findUser(userName);
+if (user == NULL)
+    return -1;
+if ((batchName = nextWord(&line)) == NULL)
+    return -2;
+struct hashEl *hel = hashLookup(stringHash, batchName);
+if (hel == NULL)
+    return -2;
+char *name = hel->name;
+struct batch *batch = findBatchInList(user->curBatches, name);
+if (batch == NULL)
+    return -2;
+if (!oneJobList(pm, batch->jobQueue, FALSE, extended))
+    return -3;
+}
+
+void listJobsForBatch(char *line, struct paraMessage *pm, boolean extended)
+/* Write out the list of jobs for a given batch. Format is the same as
+ * listJobs. */
+{
+int result = writeJobsForBatch(line, pm, extended);
+switch (result)
+    {
+    case -1:
+        pmSendString(pm, rudpOut, "User not found.");
+        break;
+    case -2:
+        pmSendString(pm, rudpOut, "Batch not found.");
+        break;
+    case -3:
+        pmSendString(pm, rudpOut, "Could not continue listing jobs.");
+        break;
+    }
+pmSendString(pm, rudpOut, "");
+}
+
 void listJobs(struct paraMessage *pm, boolean extended)
 /* Write list of jobs. Format is one job per message
  * followed by a blank message. */
@@ -3415,8 +3457,12 @@ for (;;)
 	 removeMachineAcknowledge(line, pm);
     else if (sameWord(command, "listJobs"))
 	 listJobs(pm, FALSE);
+    else if (sameWord(command, "listJobsBatch"))
+         listJobsForBatch(line, pm, FALSE);
     else if (sameWord(command, "listJobsExtended"))
 	 listJobs(pm, TRUE);
+    else if (sameWord(command, "listJobsExtendedBatch"))
+         listJobsForBatch(line, pm, TRUE);
     else if (sameWord(command, "listMachines"))
 	 listMachines(pm);
     else if (sameWord(command, "listUsers"))

@@ -68,7 +68,7 @@ errAbort(
   "   parasol remove jobs userName [jobPattern]  - Remove jobs submitted by user that\n"
   "         match jobPattern (which may include ? and * escaped for shell).\n"
   "   parasol list machines  - List machines in pool.\n"
-  "   parasol [-extended] list jobs  - List jobs one per line.\n"
+  "   parasol [-extended] [-results=resultsFile] list jobs  - List jobs one per line.\n"
   "   parasol list users  - List users one per line.\n"
   "   parasol [options] list batches  - List batches one per line.\n"
   "         option - 'all' if set include inactive\n"
@@ -416,6 +416,17 @@ if (job == NULL)
 return job;
 }
 
+void listJobsForBatch(boolean extended) {
+struct dyString *dy = newDyString(1024);
+char results[PATH_LEN];
+getResultsFile(results);
+if (extended)
+    dyStringPrintf(dy, "listJobsExtendedBatch %s %s", userName, results);
+else
+    dyStringPrintf(dy, "listJobsBatch %s %s", userName, results);
+hubCommandAndPrint(dy->string);
+dyStringFree(&dy);
+}
 
 struct jobInfo *getJobList()
 /* Read job list from server. */
@@ -609,8 +620,10 @@ else if (sameString(command, "list"))
         hubCommandAndPrint("listMachines");
     else if (sameString(subType, "job") || sameString(subType, "jobs"))
 	{
-        if (optionExists("extended"))
-	    hubCommandAndPrint("listJobsExtended");
+        if (optionExists("results"))
+            listJobsForBatch(optionExists("extended"));
+        else if (optionExists("extended"))
+            hubCommandAndPrint("listJobsExtended");
         else
 	    hubCommandAndPrint("listJobs");
 	}
